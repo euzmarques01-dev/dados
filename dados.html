@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banco Governamental RP</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Roboto,sans-serif;
+ background:linear-gradient(180deg,#0a7a3d,#f4c430);
+ display:flex;
+ justify-content:center;
+ color:#111
+}
+.app{width:100%;max-width:430px;padding:14px}
+.card{
+ background:#fff;
+ border-radius:22px;
+ padding:16px;
+ box-shadow:0 20px 50px rgba(0,0,0,.4)
+}
+h1,h2,h3{text-align:center;margin:6px 0;color:#0a7a3d}
+.flag{text-align:center;margin-bottom:6px}
+.flag img{width:52px}
+button,input{
+ width:100%;
+ padding:12px;
+ margin:6px 0;
+ border-radius:12px;
+ border:1px solid #ccc;
+ font-size:14px
+}
+button{
+ background:linear-gradient(135deg,#0a7a3d,#f4c430);
+ color:#fff;
+ font-weight:700;
+ cursor:pointer
+}
+.green{background:#1faa59}
+.red{background:#e74c3c}
+.gray{background:#ddd;color:#222}
+.box{
+ background:#f7fdf9;
+ border-radius:14px;
+ padding:12px;
+ margin:10px 0;
+ box-shadow:inset 0 0 8px rgba(0,0,0,.15)
+}
+.hidden{display:none}
+.valor{
+ font-size:22px;
+ font-weight:700;
+ color:#e60000;
+ animation:piscar 1s infinite
+}
+.dado{
+ color:#e60000;
+ animation:piscar 1.2s infinite
+}
+@keyframes piscar{
+ 0%{opacity:1}
+ 50%{opacity:.3}
+ 100%{opacity:1}
+}
+.comprovante{
+ background:#fff;
+ border:2px dashed #0a7a3d;
+ padding:10px;
+ font-size:12px;
+ margin:6px 0
+}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="card">
+
+<!-- HOME -->
+<div id="home">
+<div class="flag">
+<img src="https://upload.wikimedia.org/wikipedia/en/0/05/Flag_of_Brazil.svg">
+</div>
+<h1>Banco Governamental RP</h1>
+<button id="btnAcessar">🔐 Acessar</button>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+<h2>Login Institucional</h2>
+<input id="luser" placeholder="Login">
+<input id="lpass" type="password" placeholder="Senha">
+<button id="btnEntrar">Entrar</button>
+<button class="gray" id="btnVoltar">Voltar</button>
+<p id="msg"></p>
+</div>
+
+<!-- PAINEL -->
+<div id="painel" class="hidden">
+<h2 id="titulo"></h2>
+
+<div class="box">
+Saldo disponível:<br>
+<span id="saldo" class="valor"></span><br>
+Bloqueado: R$ <span id="bloq"></span>
+</div>
+
+<div class="box">
+<h3>📈 Indicadores Econômicos</h3>
+<div id="indicadores"></div>
+<button id="btnEdit" class="hidden">✏️ Editar Indicadores</button>
+<button id="btnCriarDado" class="hidden">➕ Criar Novo Dado</button>
+</div>
+
+<div class="box">
+<h3>🧾 Boleto</h3>
+Valor: <span id="valorBoleto" class="valor">R$ 0,00</span>
+<button class="green" id="btnPagarBoleto">💳 Pagar Boleto</button>
+</div>
+
+<div id="fundadorPainel" class="box hidden">
+<h3>👑 Fundador</h3>
+<button id="btnCriarConta">➕ Criar Conta</button>
+<button id="btnEditarSaldo">💰 Editar Saldo</button>
+<button id="btnEditarBloq">💳 Editar Bloqueado</button>
+<button id="btnCriarBoleto">🧾 Criar Boleto</button>
+<button id="btnAcessarConta">🔓 Acessar Conta</button>
+<button id="btnApagarConta">🗑 Apagar Conta</button>
+</div>
+
+<div class="box">
+<h3>📑 Comprovantes</h3>
+<div id="transacoes"></div>
+</div>
+
+<button class="red" id="btnSair">🚪 Sair</button>
+
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-analytics.js";
+
+// Firebase – DADOS NOVO
+const firebaseConfig = {
+  apiKey: "AIzaSyD7T-1Pzv4C-rtSAiAVRercQ_8TatXnaco",
+  authDomain: "dados-a7f7b.firebaseapp.com",
+  projectId: "dados-a7f7b",
+  storageBucket: "dados-a7f7b.firebasestorage.app",
+  messagingSenderId: "539366883306",
+  appId: "1:539366883306:web:360d42c2a3976d9d817c93",
+  measurementId: "G-7J1TW85S7S"
+};
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getDatabase(app);
+
+// Constantes
+const FUNDADOR_LOGIN="FUNDADOR";
+const FUNDADOR_SENHA="2007";
+const DEFAULT_INDICADORES = {
+  arrecadacaoFederal:98432, arrecadacaoEstadual:40200, arrecadacaoMunicipal:18500,
+  despesasTotais:174866, pibNominal:235, pibReal:210, pibPerCapita:1660,
+  crescimentoPIB:1.2, dividaTotal:125, dividaInterna:48, dividaExterna:52, dividaPIB:53,
+  reservas:6, balancaComercial:10, exportacoes:52, importacoes:42, inflacaoAnual:1050,
+  inflacaoMensal:35, jurosBasicos:32, spreadBancario:18, cambio:2, desemprego:7.8,
+  empregoFormal:42, salarioMinimo:82, rendaMedia:150, custoVida:140, investimentoPublico:18,
+  investimentoPrivado:22, deficitFiscal:76, gasolina:0.65, diesel:0.52, confiancaMer:42
+};
+
+// Funções auxiliares
+function formatar(valor){ return valor.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+// Inicializa Fundador
+async function initFundador(){
+  const snap = await get(ref(db,'contas'));
+  let contas = snap.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  if(!contas.some(c=>c.login===FUNDADOR_LOGIN)){
+    contas.push({login:FUNDADOR_LOGIN, senha:FUNDADOR_SENHA, tipo:"Fundador", saldo:1000000000, bloq:0});
+    set(ref(db,'contas'), contas);
+  }
+}
+
+// Inicializa indicadores
+async function initIndicadores(){
+  const snap = await get(ref(db,'indicadores'));
+  if(!snap.exists()){
+    await set(ref(db,'indicadores'), DEFAULT_INDICADORES);
+  }
+}
+
+// Telas
+function tela(id){
+  ["home","login","painel"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+// Login
+async function entrar(){
+  const l = document.getElementById("luser").value.trim();
+  const p = document.getElementById("lpass").value.trim();
+  if(!l||!p){document.getElementById("msg").innerText="Digite login e senha"; return;}
+  const snap = await get(ref(db,'contas'));
+  let contas = snap.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  const user = contas.find(c=>c.login===l && c.senha===p);
+  if(!user){document.getElementById("msg").innerText="Acesso negado"; return;}
+  localStorage.setItem("user", user.login);
+  document.getElementById("msg").innerText="";
+  carregar();
+}
+
+// Carregar painel
+let userObserver, boletoObserver;
+async function carregar(){
+  const login = localStorage.getItem("user");
+  if(!login) return;
+  tela("painel");
+
+  // Contas
+  if(userObserver) userObserver.off?.();
+  userObserver = onValue(ref(db,'contas'), snap=>{
+    let contas = snap.val() || [];
+    if(!Array.isArray(contas)) contas = Object.values(contas);
+    const u = contas.find(c=>c.login===login);
+    if(!u) return;
+    document.getElementById("titulo").innerText = u.tipo+" – "+u.login;
+    document.getElementById("saldo").innerText = "R$ "+formatar(u.saldo);
+    document.getElementById("bloq").innerText = formatar(u.bloq);
+    document.getElementById("fundadorPainel").classList.toggle("hidden", u.tipo!=="Fundador");
+    document.getElementById("btnEdit").classList.toggle("hidden", u.tipo!=="Fundador");
+    document.getElementById("btnCriarDado").classList.toggle("hidden", u.tipo!=="Fundador");
+  });
+
+  // Indicadores
+  onValue(ref(db,'indicadores'), snap=>{
+    const ind = snap.val() || {};
+    const el = document.getElementById("indicadores");
+    el.innerHTML="";
+    for(let k in ind) el.innerHTML+=`${k}: <span class="dado">${ind[k]}</span><br>`;
+  });
+
+  // Boletos
+  if(boletoObserver) boletoObserver.off?.();
+  boletoObserver = onValue(ref(db,'boletos'), snap=>{
+    const boletos = snap.val() || [];
+    const b = boletos.find(x=>x.conta===login && !x.pago);
+    if(!b){document.getElementById("valorBoleto").innerText="R$ 0,00"; return;}
+    document.getElementById("valorBoleto").innerText = "R$ "+formatar(b.valor);
+    localStorage.setItem("boletoAtual", boletos.indexOf(b));
+  });
+
+  mostrarTransacoes(login);
+}
+
+// Funções de transações, boletos e fundador
+async function criarBoleto(){
+  const conta = prompt("Conta pagadora");
+  const valor = +prompt("Valor");
+  const codigo = prompt("Código");
+  const snap = await get(ref(db,'boletos'));
+  const boletos = snap.val() || [];
+  boletos.push({conta, valor, codigo, pago:false});
+  set(ref(db,'boletos'), boletos);
+  alert("Boleto criado");
+}
+
+async function pagarBoleto(){
+  const snapBoletos = await get(ref(db,'boletos'));
+  const boletos = snapBoletos.val() || [];
+  const id = localStorage.getItem("boletoAtual");
+  if(id===null) return alert("Nenhum boleto");
+  const b = boletos[id];
+  const cod = prompt("Código do boleto");
+  if(cod!==b.codigo) return alert("Código inválido");
+
+  const snapContas = await get(ref(db,'contas'));
+  let contas = snapContas.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  const u = contas.find(c=>c.login===localStorage.getItem("user"));
+  if(u.saldo < b.valor) return alert("Saldo insuficiente");
+
+  u.saldo -= b.valor;
+  const fundador = contas.find(c=>c.tipo==="Fundador");
+  fundador.saldo += b.valor;
+  b.pago = true;
+
+  set(ref(db,'contas'), contas);
+  set(ref(db,'boletos'), boletos);
+
+  const snapTrans = await get(ref(db,'transacoes'));
+  const transacoesFB = snapTrans.val() || [];
+  transacoesFB.push({de:u.login, para:"FUNDADOR", valor:b.valor, data:new Date().toLocaleString()});
+  set(ref(db,'transacoes'), transacoesFB);
+}
+
+function mostrarTransacoes(login){
+  onValue(ref(db,'transacoes'), snap=>{
+    const t = snap.val() || [];
+    const el = document.getElementById("transacoes");
+    el.innerHTML="";
+    t.filter(x=>x.de===login||x.para===login).forEach(tr=>{
+      el.innerHTML+=`<div class="comprovante">
+      <b>Comprovante Bancário</b><hr>
+      Origem: ${tr.de}<br>
+      Destino: ${tr.para}<br>
+      Valor: R$ ${formatar(tr.valor)}<br>
+      Data: ${tr.data}
+      </div>`;
+    });
+  });
+}
+
+// Fundador
+async function criarConta(){
+  const login = prompt("Login");
+  const senha = prompt("Senha");
+  const tipo = prompt("Tipo");
+  const snap = await get(ref(db,'contas'));
+  let contas = snap.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  contas.push({login, senha, tipo, saldo:0, bloq:0});
+  set(ref(db,'contas'), contas);
+}
+
+async function editarSaldo(){
+  const login = prompt("Conta");
+  const novoSaldo = +prompt("Novo saldo");
+  const snap = await get(ref(db,'contas'));
+  let contas = snap.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  const c = contas.find(x=>x.login===login);
+  if(c) c.saldo = novoSaldo;
+  set(ref(db,'contas'), contas);
+}
+
+async function editarBloqueado(){
+  const login = prompt("Conta");
+  const novoBloq = +prompt("Novo saldo bloqueado");
+  const snap = await get(ref(db,'contas'));
+  let contas = snap.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  const c = contas.find(x=>x.login===login);
+  if(c) c.bloq = novoBloq;
+  set(ref(db,'contas'), contas);
+}
+
+function acessarConta(){
+  const login = prompt("Login");
+  localStorage.setItem("user", login);
+  carregar();
+}
+
+async function apagarConta(){
+  const login = prompt("Login");
+  const snap = await get(ref(db,'contas'));
+  let contas = snap.val() || [];
+  if(!Array.isArray(contas)) contas = Object.values(contas);
+  contas = contas.filter(x=>x.login!==login);
+  set(ref(db,'contas'), contas);
+}
+
+function sair(){
+  localStorage.clear();
+  tela("home");
+}
+
+// Botões
+document.getElementById("btnAcessar").onclick = ()=>tela("login");
+document.getElementById("btnVoltar").onclick = ()=>tela("home");
+document.getElementById("btnEntrar").onclick = entrar;
+document.getElementById("btnEdit").onclick = async ()=>{
+  const snap = await get(ref(db,'indicadores'));
+  const ind = snap.val() || {};
+  for(let k in ind){
+    const v = prompt(k, ind[k]);
+    if(v!==null) ind[k] = v;
+  }
+  set(ref(db,'indicadores'), ind);
+};
+document.getElementById("btnCriarDado").onclick = async ()=>{
+  const nome = prompt("Nome do novo indicador");
+  if(!nome) return;
+  const valor = prompt("Valor do indicador");
+  if(valor===null) return;
+  const snap = await get(ref(db,'indicadores'));
+  const ind = snap.val() || {};
+  ind[nome] = valor;
+  set(ref(db,'indicadores'), ind);
+};
+document.getElementById("btnPagarBoleto").onclick = pagarBoleto;
+document.getElementById("btnCriarConta").onclick = criarConta;
+document.getElementById("btnEditarSaldo").onclick = editarSaldo;
+document.getElementById("btnEditarBloq").onclick = editarBloqueado;
+document.getElementById("btnCriarBoleto").onclick = criarBoleto;
+document.getElementById("btnAcessarConta").onclick = acessarConta;
+document.getElementById("btnApagarConta").onclick = apagarConta;
+document.getElementById("btnSair").onclick = sair;
+
+// Inicializa
+initFundador();
+initIndicadores();
+window.onload = ()=>tela("home");
+</script>
+</body>
+</html>
